@@ -1,0 +1,139 @@
+# 一批植物物种 bulk RNA-seq 元数据策展（20261123-ppgr-rnaseq-curation）
+plan_id: 20261123-ppgr-rnaseq-curation
+title: 转录组策展（一物种一份 expression-metadata.json）
+contract_version: '2.0'
+proposal_state: pilot_complete_batch_pending
+execution_authorized: batch_via_4_agents
+
+scope:
+  in:
+    - 一批植物物种 bulk RNA-seq 元数据策展（INSDC + GSA + 文献）
+    - 一物种一份 expression-metadata.json（11 键）+ EVIDENCE.md + 基线源 TSV
+    - NCBI−ENA diff、接受名核对、单细胞剔除、GSA 补充（浏览器枚举 CRR）
+    - 审核脚本 scripts/verify_metadata.py 与人工抽查
+  out:
+    - 单细胞 RNA-seq（用户 2026-11-23 明确定不要）
+    - FASTQ 下载
+    - 生产数据库写入、API、部署、commit、push
+    - 差异分析、WGCNA、共表达、人工分组推断
+    - 表达矩阵定量（属 ingestion-contract 的 N3 阶段，另行授权）
+
+baseline:
+  groups: 16
+  counts_note: experiment 数、未剔单细胞的上界；行数以策展结果为准
+  # 物种数、experiment 数、试点行数等基线计数为本地运行记录，不进仓库
+
+roots:
+  remote_design: <Genome-web>/design
+  agent_home: <agent_home>
+  scripts: <agent_home>/scripts
+  shared_data: <agent_home>/data
+  work_root: <agent_home>/work
+  output_root: <agent_home>/output
+  durable_expression: data/analysis/<Genus_species>/expression/metadata
+
+policy:
+  no_local_build: true
+  no_fastq_download: true
+  no_database_mutation: true
+  no_deploy: true
+  no_commit_or_push: true
+  no_zero_fill: true
+  no_single_cell: true
+  no_fabrication: true
+  resumable_scripts: true
+
+gates:
+  G1:
+    name: pilot
+    authorized: true
+    authorized_at: '2026-11-23'
+    allows:
+      - 5 物种试点策展 + 方法验证
+      - 批量计数与分组
+    exit:
+      - 试点 JSON 亲手复核通过（行数/键/无重复/四元组/sha256）
+      - 8 个批量决策收敛（用户定“只要是 RNA-seq 就都要”，单细胞后改为不要）
+      - 分组方案交付用户确认
+  G2:
+    name: batch_curation
+    authorized: true
+    authorized_at: '2026-11-24'
+    authorized_by: user message「放 Agent4Genome 这吧……写好方案，直接交给 cc 的 dp4.1flash 去并行 4 个」
+    allows:
+      - 4 个并行 agent 批量策展（BATCH_PLAN.md 分工，每种 JSON + EVIDENCE.md）
+    forbids: [database_mutation, deploy, commit, push, fastq_download]
+    exit:
+      - 每组 JSON 通过 scripts/verify_metadata.py + 人工抽查
+      - 汇总总报告交付
+  G3:
+    name: landing
+    authorized: true
+    authorized_by: user message 2026-11-24 22:28「现在落盘到 data/analysis/」
+    authorized_on: 2026-11-24
+    executed: 2026-11-24（落盘记录在工作区，不进仓库）
+    requires: [explicit_user_authorization, G2]
+    allows:
+      - expression-metadata.json 落盘 data/analysis/<Genus_species>/expression/metadata/
+    forbids: [direct_overwrite_of_landed_files]
+    exit:
+      - 落盘路径首次入库前与用户确认
+      - 原子移动（临时目录 + 校验 + mv），不直接覆盖已入库文件
+  G4:
+    name: publish
+    authorized: false
+    requires: [explicit_user_authorization]
+
+work_packages:
+  - id: W01
+    title: 试点策展与方法验证
+    status: completed
+    completed_at: '2026-11-23'
+    outputs:
+      - 试点 expression-metadata.json + EVIDENCE.md
+      - PILOT_REPORT.md（含 8 个批量决策与推荐方案）
+  - id: W02
+    title: 批量计数与分组
+    status: completed
+    completed_at: '2026-11-23'
+    outputs:
+      - 物种计数与分组（本地记录，不进仓库）
+      - GROUPING.md（16 组）
+  - id: W03
+    title: 策展 agent 落地（本计划）
+    status: in_progress
+    outputs:
+      - AGENT.md / STANDARD.md / PITFALLS.md / README.md / tasks.yaml
+      - scripts/verify_metadata.py / scripts/fetch_ena_runs.sh / scripts/count_species.py
+  - id: W04
+    title: 4 并行 agent 批量策展（BATCH_PLAN.md）
+    status: pending
+    requires: [G2]
+    agents:
+      agent-a: [G01, G07, G08]
+      agent-b: [G02, G03, G09, G10]
+      agent-c: [G04, G05, G06, G11, G12]
+      agent-d: [G13, G14, G15, G16]
+  - id: W05
+    title: 逐组亲手复核与汇总总报告
+    status: pending
+    requires: [W04]
+  - id: W06
+    title: 试点 5 种 GSA-only 补齐
+    status: pending
+    outputs:
+      - GSA-only 行并入试点 JSON（CRR 枚举走浏览器）
+
+stop_conditions:
+  - ENA 与 NCBI in-scope run 集差异未定性
+  - 接受名未解析即开始策展
+  - GSA 数据被编造（CRR 号无来源）
+  - 单细胞 run 被计入
+  - source_sha256 与基线源 TSV 对不上
+  - 任何一步试图写生产库、部署或 push
+
+deferred:
+  - 表达矩阵定量（ingestion-contract N3 阶段）
+  - 前端/数据库消费（G4）
+  - NCBI 计数 0 的物种三源复查（随 W04 各组内做）
+  - 命名陷阱的接受名重查（随 W04 各组内做，见 GROUPING.md）

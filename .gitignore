@@ -1,0 +1,38 @@
+# Agent4Bio: 数据不属于 Agent。策展产物、备份、证据缓存、工作区留在计算节点，
+# 耐久元数据的指定位置是 Genome-web design/data/analysis/<Genus_species>/expression/metadata/
+# （见 tasks.yaml G3）；本仓库只管规范、脚本与小数据。
+# Per-species generated data (never commit):
+20261123-ppgr-rnaseq-curation/output/
+20261123-ppgr-rnaseq-curation/backup/
+20261123-ppgr-rnaseq-curation/work/
+20261123-ppgr-rnaseq-curation/pilot_verify/
+20261123-ppgr-rnaseq-curation/pilot/*/
+!20261123-ppgr-rnaseq-curation/pilot/_dispatch/
+20261123-ppgr-rnaseq-curation/pilot/_dispatch/*/
+# Any future agent's generated data:
+*/output/
+*/backup/
+*/work/
+*/pilot_verify/
+*/pilot/*/
+# Bytecode and caches:
+**/__pycache__/
+*.pyc
+
+# Per-species evidence-pull logs are run artifacts, not method:
+20261123-ppgr-rnaseq-curation/pilot/*_pull.log
+*/pilot/*_pull.log
+# Re-include the _dispatch run record (generic rule above re-ignored it; last match wins):
+!20261123-ppgr-rnaseq-curation/pilot/_dispatch/
+
+# Per-species run logs at pilot root:
+20261123-ppgr-rnaseq-curation/pilot/*.log
+*/pilot/*.log
+
+# 公开仓库：数据一律不进（本地输入与运行记录）
+20261123-ppgr-rnaseq-curation/data/
+20261123-ppgr-rnaseq-curation/review/
+20261123-ppgr-rnaseq-curation/pilot/_dispatch/*.json
+20261123-ppgr-rnaseq-curation/pilot/_dispatch/*.log
+20261123-ppgr-rnaseq-curation/pilot/_dispatch/*.txt
+20261123-ppgr-rnaseq-curation/pilot/_dispatch/*.md
